@@ -1,0 +1,82 @@
+{
+ "owner": "triasnugra",
+ "monitorRepo": "msctn",
+ "costPct": 0.15,
+ "engineFeePct": 0.1,
+ "engineEval": {
+  "expiryH": 24,
+  "holdH": 72
+ },
+ "minTrades": 150,
+ "minWeeks": 20,
+ "minPF": 1.2,
+ "minPerSide": 30,
+ "commonStart": "2026-11-23",
+ "commonSymbols": [
+  "BTC/USDT",
+  "ETH/USDT",
+  "SOL/USDT",
+  "XRP/USDT",
+  "DOGE/USDT",
+  "ICP/USDT",
+  "AXS/USDT",
+  "TRUMP/USDT"
+ ],
+ "staleHours": 3,
+ "regime": {
+  "sepiRange": 0.75,
+  "sepiVolume": 0.75,
+  "ekstrem": 2.0
+ },
+ "audit": {
+  "enabled": true,
+  "days": 14,
+  "tolR": 0.05,
+  "maxCalls": 12
+ },
+ "universe": {
+  "minRangePct": 0.12
+ },
+ "universeSuspect": [
+  "RWUSD",
+  "SOXLB",
+  "NVDAB",
+  "SNDKB",
+  "MSTRB",
+  "CRCLB",
+  "KORUB"
+ ],
+ "engines": [
+  {
+   "id": "sctn",
+   "nama": "sctn (8 koin tetap)",
+   "repo": "sctn",
+   "start": "2026-11-19"
+  },
+  {
+   "id": "sctnv2",
+   "nama": "sctnv2 (+scanner & indikator)",
+   "repo": "sctnv2",
+   "start": "2026-11-19"
+  },
+  {
+   "id": "sctnv3",
+   "nama": "sctnv3",
+   "repo": "sctnv3",
+   "start": "2026-11-23"
+  },
+  {
+   "id": "sctnv4",
+   "nama": "sctnv4 (mesin Python/Eliz, entry dianggap terisi)",
+   "repo": "sctnv4",
+   "fmt": "history",
+   "start": "2026-11-25",
+   "engineFeePct": 0.16,
+   "tp1FractionPct": 60,
+   "holdH": 6,
+   "quote": "USDT",
+   "pinHash": null
+  }
+ ],
+ "riskPerTradePct": 1.0
+}
