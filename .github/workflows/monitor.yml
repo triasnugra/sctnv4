@@ -1,0 +1,72 @@
+name: monitor
+on:
+  schedule: [{cron: '*/30 * * * *'}]
+  workflow_dispatch:
+  push: {branches: [main]}
+permissions: {contents: read, pages: write, id-token: write}
+concurrency: {group: pages, cancel-in-progress: false}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - name: Uji unit (metrik, simulator, CSV)
+        run: node --test "test/*.test.mjs"
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: {name: github-pages, url: '${{ steps.d1.outputs.page_url || steps.d2.outputs.page_url || steps.d3.outputs.page_url }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: node scripts/build.mjs
+        env: {MONITOR_TOKEN: '${{ secrets.MONITOR_TOKEN }}'}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+          # nama unik per run+attempt: artifact "github-pages" lama dari run/attempt sebelumnya tidak lagi bentrok
+          name: pages-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # Artifact baru selesai diunggah tetapi kadang belum terdaftar di API ("Found 0 artifact(s)"):
+      # beri jeda singkat supaya deploy-pages tidak kalah cepat.
+      - name: Jeda 15 detik (tunggu artifact terdaftar)
+        run: sleep 15
+
+      # Deploy dengan coba-ulang otomatis. Error deploy (artifact belum terdaftar, atau
+      # "Deployment failed, try again later." dari backend GitHub Pages) berasal dari sisi GitHub,
+      # bukan dari kode monitor, dan umumnya hilang bila dicoba lagi. Total maksimal 3 percobaan.
+      - id: d1
+        name: Deploy ke GitHub Pages (percobaan 1)
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+        with:
+          artifact_name: pages-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Jeda 20 detik sebelum percobaan 2
+        if: steps.d1.outcome == 'failure'
+        run: sleep 20
+      - id: d2
+        name: Deploy ke GitHub Pages (percobaan 2)
+        if: steps.d1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+        with:
+          artifact_name: pages-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Jeda 60 detik sebelum percobaan 3
+        if: steps.d2.outcome == 'failure'
+        run: sleep 60
+      - id: d3
+        name: Deploy ke GitHub Pages (percobaan 3)
+        if: steps.d2.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+        with:
+          artifact_name: pages-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Deploy gagal setelah 3 percobaan
+        if: steps.d1.outcome == 'failure' && steps.d2.outcome != 'success' && steps.d3.outcome != 'success'
+        run: |
+          echo "::error title=Deploy GitHub Pages gagal 3x::Build & tes lolos; yang gagal adalah backend GitHub Pages. Cek githubstatus.com, lalu (1) Settings > Pages > Source = GitHub Actions (coba ganti ke Deploy from a branch lalu kembalikan), atau (2) push commit kosong agar SHA baru: git commit --allow-empty -m retrigger"
+          exit 1
