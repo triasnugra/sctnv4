@@ -1,76 +1,102 @@
-# monitorsctn
-Monitor kinerja & evaluasi mesin analisis **scalping** crypto: `sctn`, `sctnv2`, `sctnv3`, `sctnv4` (dan mesin berikutnya).
-Situs: https://triasnugra.github.io/msctn/ · Struktur sama dengan `monitortn` (Node 22, GitHub Actions + Pages), tetapi seluruh metriknya untuk scalping.
+# Mesin Analisis Scalping Crypto
 
-## Pasang
-1. Buat repo `msctn`, upload semua file (GitHub web UI), Settings → Pages → Source: **GitHub Actions**.
-2. Repo mesin privat? Buat token (read contents) → simpan sebagai secret `MONITOR_TOKEN`. Repo publik: tidak perlu (monitor membaca juga dari `https://triasnugra.github.io/<mesin>/data/...`).
-3. Actions → monitor → Run workflow. Build otomatis tiap 30 menit.
-4. Mesin baru berformat sctn: tambahkan satu blok di `engines` pada `config.json`. Mesin berformat sctnv4 (Python, `history.json`): blok dengan `"fmt": "history"` (lihat bawah).
+Mesin analisis **scalping saja** (bukan swing) berbasis logika Eliz (YouTube ElizCrypto + X @eliz883) ditambah lapisan
+kecerdasan Claude (skor, R:R bersih biaya, ukuran posisi, pelacak hasil, backtest). Berjalan otomatis di
+**GitHub Actions** dan dipublikasikan sebagai dashboard di **GitHub Pages**.
 
-## Yang dibaca dari tiap mesin (tidak ada yang diubah di mesin)
-`output/signal_log.csv`, `output/forward_test.json`, `output/backtest/summary.json`, `output/backtest/trades.csv`, `output/universe.json`.
+> Alat bantu analisis, bukan nasihat keuangan dan bukan jaminan profit. Parameter bertanda **[C]** di `config.yaml`
+> adalah hipotesis yang HARUS di-backtest sebelum dipercaya. Default-nya analisis/paper trading, tanpa auto-eksekusi.
 
-## Beda dengan monitortn (swing)
-| Hal | monitortn (swing) | monitorsctn (scalping) |
-|---|---|---|
-| Sumber | `data/journal.json` | log sinyal + forward test + backtest mesin sctn |
-| Satuan waktu | hari / minggu | jam; durasi trade, tunggu isi limit, sesi (Asia/Eropa/AS) |
-| Hasil | TP / SL / kedaluwarsa | LOSS / TP1_BE / TP2 / TIMEOUT, R parsial (60% di TP1) |
-| Biaya | 0,2% | 0,15% (bisa diubah); stop scalping ±0,7% → biaya ≈ 0,2R per trade |
-| Kunci evaluasi | win rate & R | **corong sinyal→terisi→selesai** (limit yang tak terisi), biaya impas, durasi |
-| Uji silang | tidak ada | hitung ulang trade forward dengan **candle 1 menit** (simulator 15m mesin ambigu bila stop & TP di candle sama) |
+## Cara pasang (5 langkah)
 
-## Isi dashboard
-- **Ringkasan & gerbang kelayakan** (forward saja): trade ≥150, minggu ≥20, CI95 bawah > 0, PF ≥1,2, dan **dua arah teruji** (LONG & SHORT masing-masing ≥30). Backtest **bukan** bukti.
-- **Perbandingan** forward vs backtest vs "jendela & koin bersama" (backtest tiap mesin memakai jendela waktu berbeda, jadi tidak boleh dibandingkan langsung).
-- **Peringatan** otomatis: workflow mati/telat, fill rate rendah, backtest bergantung pada 1–2 koin, bias SHORT, drawdown vs risiko, backtest identik antar mesin, sinyal kembar antar mesin, `config_hash` berganti, koin tokenisasi saham/mirip-stablecoin di universe scanner, dll.
-- **Corong sinyal**, **sinyal menunggu** (harga live; ditandai BASI bila harga sudah melewati TP1), **kurva ekuitas**.
-- **Bedah mesin**: per arah, trigger/TF, koin, sesi, skor, lebar stop, hari, rezim volatilitas BTC, arah BTC; durasi; level unik (N efektif); konsentrasi; sensitivitas biaya & biaya impas.
-- **Jurnal forward** (cari/filter). Kolom **Tercapai (UTC)** dan **Tercapai (WIB)** = tanggal & jam trade selesai (TP2 / stop / TP1 lalu BE / timeout) menurut jurnal mesin, beresolusi candle 15m.
-- **Laporan untuk Claude**: maks 4 kolom (3 laporan harian per tanggal WIB + 1 LIVE). Tombol **Simpan tanggal lapor** mencatat kapan laporan sudah dikirim ke Claude di Firebase (realtime; cadangan localStorage bila Firebase gagal). Biru = belum dilaporkan sampai hari terakhir tampil; hijau = sudah.
+1. **Buat repo baru** di GitHub (mis. `scalp-engine`). Pakai repo khusus: jika kamu menaruhnya di repo situs yang sudah
+   punya halaman lain (mis. `username.github.io`), deploy Pages via Actions akan **menggantikan seluruh isi situs**.
+2. **Upload semua isi folder ini** ke branch `main` (termasuk folder `.github/`, yang tersembunyi di sebagian file manager).
+3. Buka **Settings -> Pages -> Build and deployment -> Source: GitHub Actions**.
+4. Buka tab **Actions**, aktifkan workflow bila diminta, pilih **Scalp Analysis and Deploy -> Run workflow**.
+   (Opsi `demo` memakai data sintetis untuk menguji tampilan tanpa jaringan.)
+5. Dashboard muncul di `https://<username>.github.io/<nama-repo>/` setelah workflow hijau. Selanjutnya berjalan tiap 15 menit.
 
-## Metodologi (singkat dan jujur)
-- R versi monitor = R bersih mesin dibalik ke kotor (+biaya 0,10% mesin) lalu dikurangi biaya `costPct`. `engineFeePct` di `config.json` harus sama dengan `fee_pct_roundtrip` di `risk.yaml` mesin.
-- Win = R > 0. CI95 R/trade = **bootstrap per hari** (sinyal antar koin berkorelasi dengan BTC); baru dihitung bila ≥10 hari.
-- Forward hanya memakai baris ber-`config_hash` terbaru (aturan mesin: ganti hash = forward test mulai ulang).
-- Backtest memakai daftar koin statis dan sinyal per-jam yang saling tumpang-tindih → lihat "level unik / N efektif". Hasil backtest yang bertumpu pada 1–2 koin atau satu arah (SHORT) = peringatan.
-- Memilih "mesin terbaik" dari 3 kandidat = perbandingan ganda. Tetapkan gerbang **sebelum** melihat hasil.
-- Semua ambang di `config.json` adalah hipotesis, bukan kebenaran.
+## Cara kerja
 
-## Uji
 ```
-node --test "test/*.test.mjs"                       # uji unit (tanpa internet)
-python3 test/parity.py <simulator.py mesin>          # simulator JS = simulator Python mesin (400 skenario acak)
-node test/offline.mjs <folder hasil unzip mesin>     # build ujung-ke-ujung dengan Binance palsu
-LOCAL_DIR=<folder> node scripts/build.mjs            # build lokal dari folder <mesin>/<mesin>-main/ (tanpa lapisan live)
+GitHub Actions (cron */15)
+  -> ambil data OHLCV (5m/15m/1h/4h/1d, candle tertutup saja) dari provider fallback
+  -> pipeline Gate 0-9 per simbol (BTC dulu sebagai konteks musim altcoin)
+  -> catat sinyal LONG/SHORT_SCALP ke history.json dan lacak hasilnya (R) dengan candle 5m
+  -> tulis site/index.html + data.json + history.json
+  -> deploy ke GitHub Pages
 ```
-Catatan: lapisan live (harga, rezim, uji silang, cek universe) butuh akses ke Binance dari runner Actions. Bila diblok (HTTP 451), bagian itu ditandai di Peringatan dan build tetap jalan.
 
-## Laporan harian & Firebase
-- `scripts/laporan-log.mjs` menyimpan riwayat laporan di `laporan-log.json` (dibaca ulang dari Pages tiap build). Hari yang terlewat direkonstruksi dari jurnal (diberi label REKONSTRUKSI).
-- Firebase memakai proyek **msctnasgra** (Firestore `(default)`, lokasi asia-southeast1), koleksi `laporan`. Tidak perlu login. ID dokumen msctn = `YYYYMMDD0001`; field `tanggal` dan `diperbarui` (waktu server = kapan tombol **Simpan tanggal lapor** diklik). Rules di Console harus sama dengan `firestore.rules` (Firestore Database → Rules → Publish). Config ada di `index.html` (`FIREBASE_CONFIG`); catatan lama yang dulu tersimpan di proyek monitortn tidak ikut pindah, cukup klik **Simpan tanggal lapor** lagi bila perlu.
+`history.json` dibawa antar-run dengan mengunduh versi dari Pages sebelumnya (tidak ada commit berulang ke repo).
 
-## sctnv4 (mesin Python, format `history`)
-sctnv4 **tidak** menulis `signal_log.csv` / `forward_test.json` / `backtest/`; ia hanya menerbitkan `history.json` + `data.json` ke GitHub Pages-nya. Monitor memakai adapter `fmt: "history"` (blok `sctnv4` di `config.json`):
+### Pipeline keputusan
 
-| Hal | Perlakuan |
+| Gate | Isi |
 |---|---|
-| Sumber | `https://triasnugra.github.io/sctnv4/history.json` & `data.json` (Pages, publik); `config.yaml` dari raw (butuh `MONITOR_TOKEN` bila repo privat) |
-| Biaya | `engineFeePct: 0.16` (= 2 × (fee 5 + slippage 3 bps) di `config.yaml` sctnv4). Monitor tetap memakai `costPct` yang sama untuk semua mesin, jadi sebanding |
-| Hasil | `SL`→LOSS, `TP1_BE`, `TP2`, `TIME/TP1_TIME`→TIMEOUT. Time stop 6 jam sejak sinyal |
-| Skor | skala 0-100 (ambang 75) dibagi 10 agar masuk bucket skor yang sama dengan mesin lain |
-| Backtest | tidak ada di Pages (hanya artifact Actions manual) → kolom backtest sctnv4 kosong, memang begitu |
-| **Arsip** | `history.json` mesin dipangkas ke 300 sinyal dan bisa ter-reset bila unduhan Pages gagal saat deploy mesin. Monitor menyimpan semua sinyal yang pernah terlihat di `arsip-sctnv4.json` (dibaca lagi dari Pages tiap build) agar gerbang 150 trade / 20 minggu tetap bisa tercapai. Bila arsip ada tetapi tak terbaca (bukan 404), build berhenti supaya arsip tidak tertimpa |
-| Hash konfigurasi | history.json tidak mencatat `config_hash`. Isi `"pinHash"` di `config.json` dengan hash yang tampil di Peringatan; bila `config.yaml` berubah, muncul peringatan MERAH (forward test harus mulai ulang) |
-| **Pengisian entry** | Simulator sctnv4 menganggap entry **terisi saat sinyal** dan history.json tidak menandai limit vs entry-zone. Uji silang candle 1 menit memeriksa apakah harga benar-benar menyentuh entry (kolom "sadar-pengisian"). Selisih besar = R sctnv4 terlalu optimis |
-| Mode demo | run demo sctnv4 tidak dimasukkan ke arsip (dan tanggalnya sebelum `start`) |
+| G0 | Kualitas data, candle basi, likuiditas koin |
+| G1 | Event/waktu: jendela stand-aside manual, post-shock 24-48 jam, Monday range, likuiditas tipis |
+| G2 | "Musim" tren: LONG_SEASON / SHORT_SEASON / NEUTRAL_RANGE (struktur HH/HL, EMA 20/50, 1D + 4H) |
+| G3 | Range H1 (RH/RL), zona tengah = no-man's land |
+| G4 | Peta level + confluence (range edge, Monday H/L, prev day/week, FVG, Fibonacci 0.25/0.5/0.75/0.786, EMA, pivot HTF) |
+| G5 | Trigger: **T1** deviation+reclaim, **T2** breakout-retest, **T3** pullback fib 0.75/0.786, **T4** reclaim trendline / flip EMA |
+| G6 | Konfirmasi: volume, wick, dinding order book, OBV (hanya BTC/ETH), divergensi RSI, keselarasan BTC |
+| G7 | Stop struktural, batas jarak stop, R:R bersih fee+slippage, batas harian, ukuran posisi |
+| G8 | Skor 0-100 (>=75 TRADE, >=66 WAIT) |
+| G9 | Rencana manajemen: TP1 parsial, stop ke break-even, stop cadangan, time stop |
 
-Bila ingin memulai forward test sctnv4 ulang (mis. setelah mengubah `config.yaml`): naikkan `start` dan `pinHash` pada blok `sctnv4`.
+Long dan short dijamin simetris: logika ditulis untuk sisi long, sisi short dijalankan pada harga yang dicerminkan.
 
-### Uji tambahan
+## Konfigurasi
+
+Semua parameter ada di `config.yaml` (komentar `[E]` = dari materi Eliz, `[C]` = tambahan Claude). Yang paling sering diubah:
+
+```yaml
+symbols: [BTC, ETH, SOL, PEPE]
+account: { equity_usd: 1000, risk_pct: 0.75, max_leverage_effective: 10 }
+gate1_context:
+  stand_aside_windows:                 # isi manual saat ada FOMC/CPI dsb. (waktu UTC)
+    - { start: "2026-12-17 18:00", end: "2026-12-17 22:00", label: "FOMC" }
+scoring: { trade_threshold: 75, wait_threshold: 66 }
 ```
-node --test "test/*.test.mjs"                          # termasuk test/sctnv4.test.mjs
-python3 test/parity_v4.py <folder sctnv4-main>         # simulatePy (JS) = simulate_trade (Python sctnv4), 400 skenario acak
-node test/offline_v4.mjs                               # build ujung-ke-ujung sctnv4 dengan history & Binance palsu
+
+## Jalankan lokal
+
+```bash
+pip install -r requirements.txt
+python -m pytest -q                                   # tes
+python -m scalp.main analyze --out site --demo        # demo offline
+python -m scalp.main analyze --out site               # live
+python -m scalp.main backtest --symbol BTC --days 30 --step 2 --json out/bt.json
+```
+
+Backtest juga bisa dijalankan dari tab Actions (**Backtest (manual)**); hasilnya diunggah sebagai artifact.
+
+## Batasan yang perlu kamu tahu
+
+- **Jadwal GitHub Actions best-effort**: bisa tertunda beberapa menit dan tidak cocok untuk eksekusi latensi rendah.
+  Cocok untuk snapshot/alert per 15 menit. Di repo publik, workflow terjadwal dinonaktifkan GitHub setelah 60 hari tanpa
+  aktivitas repo; aktifkan lagi dari tab Actions bila itu terjadi.
+- **Provider data**: urutan fallback `binance_vision -> okx -> bybit` (satu provider dipakai untuk semua timeframe satu simbol).
+  Sebagian exchange memblokir IP wilayah tertentu (HTTP 403/451); bila semua gagal, simbol ditandai G0 FAIL dan workflow
+  gagal hanya jika SEMUA simbol gagal. Ubah urutan di `data.providers`. Nama simbol berbeda per exchange diatur di `symbol_overrides`.
+- **Heatmap likuidasi tidak termasuk** (butuh API berbayar). Dinding order book dipakai sebagai konfirmasi opsional;
+  bila tidak tersedia, mesin berjalan tanpa itu.
+- **Backtest tanpa order book/heatmap** dan mengasumsikan entry terisi di harga entry; bila stop dan target tersentuh
+  dalam candle yang sama, dianggap stop dulu (konservatif).
+- **Belum terbukti punya edge.** Pada uji internal dengan data acak (random walk), mesin tetap mengeluarkan sebagian
+  kecil sinyal; itu wajar untuk baseline tanpa edge dan artinya hasil live/backtest nyata yang menentukan, bukan skor.
+  Kalibrasi bobot, ambang, dan batas stop lewat backtest walk-forward pada data nyata.
+- Tes unit memakai data sintetis dan mock jaringan; **panggilan API exchange nyata belum diuji dari lingkungan pembuatan**.
+  Jalankan workflow sekali secara manual dan cek log bila ada provider yang gagal.
+
+## Struktur repo
+
+```
+.github/workflows/analyze.yml    cron + test + deploy Pages
+.github/workflows/backtest.yml   backtest manual
+config.yaml                      semua parameter
+scalp/                           data, structure, levels, triggers, confirm, risk, engine, tracker, backtest, report, main
+scalp/web/index.template.html    dashboard statis
+tests/                           tes unit (data sintetis + mock)
 ```
