@@ -34,6 +34,14 @@ th{text-align:left;font-size:12px;color:var(--mut);padding:4px 8px 4px 0}
 .pos{color:var(--ok)}.neg{color:var(--bad)}
 footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;color:var(--mut);font-size:12px}
 details summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:6px}
+.pipe{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pipe table{margin:0;font-size:13.5px}
+.pipe th{background:var(--chip);color:var(--ink);font-size:13px;padding:9px 14px;border-bottom:1px solid var(--line)}
+.pipe th.c{text-align:center}
+.pipe td{padding:9px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.pipe tr:last-child td{border-bottom:0}
+.pipe tbody tr:nth-child(even) td{background:var(--chip)}
+.pipe td:first-child{width:64px;font-weight:700;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -43,6 +51,25 @@ details summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:6px}
 </header>
 <main>
   <div class="grid" id="cards"></div>
+  <h2 id="pipeline">Pipeline keputusan</h2>
+  <div class="mut" style="margin-bottom:8px">Keterangan gate G0&ndash;G9 yang tampil sebagai label di tiap kartu koin.</div>
+  <div class="pipe wrap">
+    <table>
+      <thead><tr><th class="c">Gate</th><th class="c">Isi</th></tr></thead>
+      <tbody>
+      <tr><td>G0</td><td>Kualitas data, candle basi, likuiditas koin</td></tr>
+      <tr><td>G1</td><td>Event/waktu: jendela stand-aside manual, post-shock 24-48 jam, Monday range, likuiditas tipis</td></tr>
+      <tr><td>G2</td><td>&ldquo;Musim&rdquo; tren: LONG_SEASON / SHORT_SEASON / NEUTRAL_RANGE (struktur HH/HL, EMA 20/50, 1D + 4H)</td></tr>
+      <tr><td>G3</td><td>Range H1 (RH/RL), zona tengah = no-man's land</td></tr>
+      <tr><td>G4</td><td>Peta level + confluence (range edge, Monday H/L, prev day/week, FVG, Fibonacci 0.25/0.5/0.75/0.786, EMA, pivot HTF)</td></tr>
+      <tr><td>G5</td><td>Trigger: <b>T1</b> deviation+reclaim, <b>T2</b> breakout-retest, <b>T3</b> pullback fib 0.75/0.786, <b>T4</b> reclaim trendline / flip EMA</td></tr>
+      <tr><td>G6</td><td>Konfirmasi: volume, wick, dinding order book, OBV (hanya BTC/ETH), divergensi RSI, keselarasan BTC</td></tr>
+      <tr><td>G7</td><td>Stop struktural, batas jarak stop, R:R bersih fee+slippage, batas harian, ukuran posisi</td></tr>
+      <tr><td>G8</td><td>Skor 0-100 (&gt;=75 TRADE, &gt;=66 WAIT)</td></tr>
+      <tr><td>G9</td><td>Rencana manajemen: TP1 parsial, stop ke break-even, stop cadangan, time stop</td></tr>
+      </tbody>
+    </table>
+  </div>
   <h2>Riwayat sinyal (dilacak otomatis)</h2>
   <div class="mut" id="stats"></div>
   <div class="wrap"><table class="tbl" id="hist"></table></div>
